@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>CaseSetu — Patient Case-Taking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sora: ['Sora', 'sans-serif'], inter: ['Inter', 'sans-serif'] },
+                    colors: {
+                        navy: { DEFAULT: '#0B2A4A', 50: '#EAF0F6', 100: '#CBDAE8', 400: '#274F76', 500: '#0B2A4A', 600: '#081F38', 700: '#061627' },
+                        brand: { DEFAULT: '#1B4E93', 50: '#EAF1FB', 100: '#CFE0F6', 400: '#3568AC', 500: '#1B4E93', 600: '#153E77' },
+                        cyan: { DEFAULT: '#14B8C7', 50: '#E7FAFB', 100: '#C3F1F4', 500: '#14B8C7', 600: '#0E93A0' },
+                        okgreen: { DEFAULT: '#1E9E6D', 50: '#E9F8F1', 100: '#CBEFDF', 500: '#1E9E6D', 600: '#167F57' },
+                        amber: { DEFAULT: '#E08E2E', 50: '#FDF3E6', 100: '#FAE2C0', 500: '#E08E2E', 600: '#B87220' },
+                        urgent: { DEFAULT: '#DC3B3B', 50: '#FDEAEA', 100: '#F9CACA', 500: '#DC3B3B', 600: '#B32B2B' },
+                        ink: '#12202E', muted: '#5B6B7A', shell: '#F5F7FA'
+                    },
+                    boxShadow: { card: '0 1px 2px rgba(11,42,74,0.06), 0 8px 24px -8px rgba(11,42,74,0.12)' }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --shell: #F5F7FA;
+            --surface: #FFFFFF;
+            --ink: #12202E;
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --shell: #0C1520;
+                --surface: #131F2C;
+                --ink: #EAF1F7;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --shell: #0C1520;
+            --surface: #131F2C;
+            --ink: #EAF1F7;
+        }
+
+        html {
+            scroll-padding-top: env(safe-area-inset-top, 0px);
+        }
+
+        html,
+        body,
+        #root {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: var(--shell);
+            color: var(--ink);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        .font-display {
+            font-family: 'Sora', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #CBDAE8;
+            border-radius: 8px;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .fade-in {
+            animation: fadeIn .45s ease both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fade-in {
+                animation: none;
+            }
+        }
+
+        .wave-bar {
+            animation: wave 1.05s ease-in-out infinite;
+            transform-origin: center;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                transform: scaleY(0.3);
+            }
+
+            50% {
+                transform: scaleY(1);
+            }
+        }
+
+        .focus-ring:focus-visible {
+            outline: 2px solid #14B8C7;
+            outline-offset: 2px;
+        }
+
+        .scale-btn {
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+
+        .scale-btn:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="react,env">
+
+        const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+        /* ============================== ICONS ============================== */
+        /* Minimal self-contained line-icon set, consistent stroke system (no external icon deps) */
+        const Icon = ({ name, size = 20, className = "", strokeWidth = 1.8 }) => {
+            const common = {
+                width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+                strokeWidth, strokeLinecap: "round", strokeLinejoin: "round", className
+            };
+            const paths = {
+                logo: <><path d="M12 3v18M3 12h18" /><circle cx="12" cy="12" r="9" /></>,
+                dashboard: <><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>,
+                user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" /></>,
+                users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c.9-3.2 3-5 6-5s5.1 1.8 6 5" /><circle cx="17" cy="9" r="2.4" /><path d="M15.5 12.2c1.9.3 3.4 1.7 4.5 4.6" /></>,
+                stethoscope: <><path d="M5 4v6a4 4 0 0 0 8 0V4" /><path d="M9 14v2a5 5 0 0 0 10 0v-2.5" /><circle cx="19" cy="9.5" r="1.6" /></>,
+                heart: <path d="M12 20.2C6.8 16.6 3 13.3 3 9.3 3 6.6 5.1 4.6 7.7 4.6c1.6 0 3 .8 4.3 2.3 1.3-1.5 2.7-2.3 4.3-2.3 2.6 0 4.7 2 4.7 4.7 0 4-3.8 7.3-9 10.9Z" />,
+                activity: <path d="M3 12h4l2 7 4-14 2 7h6" />,
+                mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3M9 21h6" /></>,
+                upload: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></>,
+                file: <><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M14 3v5h5" /></>,
+                check: <path d="M4 12.5 9.5 18 20 6" />,
+                checkCircle: <><circle cx="12" cy="12" r="9" /><path d="M8 12.5 11 15.5 16 9" /></>,
+                x: <path d="M6 6l12 12M18 6 6 18" />,
+                chevronRight: <path d="M9 5l7 7-7 7" />,
+                chevronLeft: <path d="M15 5l-7 7 7 7" />,
+                chevronDown: <path d="M5 9l7 7 7-7" />,
+                alert: <><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4M12 17h.01" /></>,
+                clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>,
+                calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
+                bell: <><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
+                search: <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>,
+                shield: <><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6l7-3Z" /><path d="M9 12l2 2 4-4" /></>,
+                globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></>,
+                logout: <><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4" /><path d="M15 16l4-4-4-4M19 12H9" /></>,
+                settings: <><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.15-1.4l2-1.6-2-3.4-2.4.8a7.3 7.3 0 0 0-2.4-1.4L13.6 3h-3.2l-.45 2.9a7.3 7.3 0 0 0-2.4 1.4l-2.4-.8-2 3.4 2 1.6a7.2 7.2 0 0 0 0 2.8l-2 1.6 2 3.4 2.4-.8c.7.6 1.5 1.1 2.4 1.4l.45 3h3.2l.45-3a7.3 7.3 0 0 0 2.4-1.4l2.4.8 2-3.4-2-1.6c.1-.5.15-.95.15-1.4Z" /></>,
+                plus: <path d="M12 5v14M5 12h14" />,
+                edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>,
+                trash: <><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></>,
+                pill: <><rect x="3" y="10" width="18" height="8" rx="4" transform="rotate(-35 12 14)" /><path d="M9 15 15 9" /></>,
+                clipboard: <><rect x="6" y="4" width="12" height="17" rx="2" /><rect x="9" y="2" width="6" height="4" rx="1" /><path d="M9 11h6M9 15h6" /></>,
+                leaf: <path d="M20 4c-9 0-16 5-16 14 9 0 14-5 16-14Zm-16 14c2-4 5-7 9-9" />,
+                ear: <><path d="M8 12a5 5 0 0 1 10 0c0 2.5-2 3-2 5.5a2.5 2.5 0 0 1-5 0" /><path d="M8 12c0-3.5 2-6 5-6" /></>,
+                baby: <><circle cx="12" cy="8" r="3" /><path d="M6 20c0-3 2.5-6 6-6s6 3 6 6" /><path d="M9 8h.01M15 8h.01" /></>,
+                bone: <><path d="M6.5 6.5c1.4-1.4 3.6-1.4 5 0l5 5c1.4 1.4 1.4 3.6 0 5s-3.6 1.4-5 0l-5-5c-1.4-1.4-1.4-3.6 0-5Z" /><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /></>,
+                sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />,
+                venus: <><circle cx="12" cy="9" r="6" /><path d="M12 15v6M9 19h6" /></>,
+                map: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></>,
+                grid: <><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>,
+                history: <><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4" /><path d="M12 8v4l3 2" /></>,
+                swap: <><path d="M4 8h13l-3-3M20 16H7l3 3" /></>,
+                download: <><path d="M12 4v11M7 10l5 5 5-5" /><path d="M4 19h16" /></>,
+                lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
+                eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
+                text: <><path d="M5 6h14M5 12h14M5 18h9" /></>,
+                touch: <><path d="M9 12V5a2 2 0 0 1 4 0v6" /><path d="M13 11V4a2 2 0 0 1 4 0v9" /><path d="M17 11.5V7a2 2 0 0 1 4 0v7c0 4-2.5 7-6.5 7-3 0-4.7-1.2-6.5-4l-2.4-4a1.7 1.7 0 0 1 2.8-1.9L11 14" /></>,
+                ayush: <path d="M12 21c5-3 8-7 8-12a8 8 0 0 0-16 0c0 5 3 9 8 12Z" />,
+                building: <><rect x="4" y="3" width="16" height="18" rx="1" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1" /></>,
+                droplet: <path d="M12 3c3.5 4.5 6 7.8 6 11a6 6 0 0 1-12 0c0-3.2 2.5-6.5 6-11Z" />,
+            };
+            return <svg {...common}>{paths[name] || null}</svg>;
+        };
+
+        /* ============================== MOCK DATA ============================== */
+        const LANGUAGES = [
+            { code: 'en', label: 'English', native: 'English' },
+            { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+            { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+            { code: 'mr', label: 'Marathi', native: 'मराठी' },
+            { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+            { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+        ];
+
+        const DEPARTMENTS = [
+            { id: 'gen', name: 'General Medicine', icon: 'stethoscope', desc: 'Common illness, fever & general checkups' },
+            { id: 'cardio', name: 'Cardiology', icon: 'heart', desc: 'Heart, chest pain & blood pressure' },
+            { id: 'derma', name: 'Dermatology', icon: 'sparkle', desc: 'Skin, hair and nail conditions' },
+            { id: 'ortho', name: 'Orthopedics', icon: 'bone', desc: 'Bones, joints and muscle injuries' },
+            { id: 'peds', name: 'Pediatrics', icon: 'baby', desc: 'Child health and development' },
+            { id: 'gyne', name: 'Gynecology', icon: 'venus', desc: "Women's health and maternity care" },
+            { id: 'ent', name: 'ENT', icon: 'ear', desc: 'Ear, nose and throat care' },
+            { id: 'ayush', name: 'Ayurveda', icon: 'leaf', desc: 'Traditional Ayurvedic consultation' },
+        ];
+
+        const DOCTORS_SEED = [
+            { id: 'd1', name: 'Dr. Sharma', spec: 'General Medicine', status: 'Available', cases: 4 },
+            { id: 'd2', name: 'Dr. Verma', spec: 'General Medicine', status: 'Busy', cases: 8 },
+            { id: 'd3', name: 'Dr. Gupta', spec: 'General Medicine', status: 'Available', cases: 2 },
+            { id: 'd4', name: 'Dr. Iyer', spec: 'Cardiology', status: 'Available', cases: 3 },
+            { id: 'd5', name: 'Dr. Nair', spec: 'Ayurveda', status: 'Available', cases: 1 },
+            { id: 'd6', name: 'Dr. Khan', spec: 'Pediatrics', status: 'Busy', cases: 6 },
+        ];
+
+        const STATUS_FLOW = ['Registered', 'Case Taking', 'Submitted', 'Under Triage', 'Assigned', 'Waiting for Consultation', 'In Consultation', 'Completed', 'Follow-up'];
+
+        const SYMPTOM_CHIPS = ['Sweating', 'Nausea', 'Dizziness', 'Fatigue', 'Palpitations', 'None of these'];
+
+        const uid = (p = 'C') => p + Math.floor(1000 + Math.random() * 8999);
+
+        function seedCases() {
+            return [
+                { id: '#1010', patient: 'Anita Rao', age: 35, gender: 'Female', department: 'Dermatology', priority: 'NORMAL', wait: '—', status: 'Completed', doctor: '—', complaint: 'Recurrent skin rash on forearm', createdDay: 'Mon' },
+                { id: '#1015', patient: 'Suresh Menon', age: 58, gender: 'Male', department: 'Orthopedics', priority: 'PRIORITY REVIEW', wait: '—', status: 'Completed', doctor: 'Dr. Iyer', complaint: 'Knee pain while climbing stairs', createdDay: 'Mon' },
+                { id: '#1021', patient: 'Farah Sheikh', age: 29, gender: 'Female', department: 'General Medicine', priority: 'NORMAL', wait: '—', status: 'In Consultation', doctor: 'Dr. Sharma', complaint: 'Mild fever and body ache', createdDay: 'Today' },
+                { id: '#1032', patient: 'Vikram Sethi', age: 61, gender: 'Male', department: 'Cardiology', priority: 'URGENT REVIEW', wait: '6 min', status: 'Under Triage', doctor: 'Unassigned', complaint: 'Chest tightness and sweating', createdDay: 'Today' },
+            ];
+        }
+
+        /* ============================== RULE-BASED PRIORITY ENGINE ============================== */
+        function computePriority({ complaintText, severity, shortBreath, breathAtRest, worseOnActivity, duration }) {
+            const reasons = [];
+            let score = 0;
+            const text = (complaintText || '').toLowerCase();
+            if (text.includes('chest')) { reasons.push('Chest pain reported'); score += 3; }
+            if (shortBreath === 'Yes') { reasons.push('Shortness of breath present'); score += 3; }
+            if (breathAtRest === 'Yes') { reasons.push('Breathlessness occurs even at rest'); score += 2; }
+            if (worseOnActivity === 'Yes') { reasons.push('Symptom worsens with physical activity'); score += 1; }
+            if (severity >= 7) { reasons.push(`Reported severity is high (${severity}/10)`); score += 2; }
+            else if (severity >= 4) { reasons.push(`Reported severity is moderate (${severity}/10)`); score += 1; }
+            if (duration) { reasons.push(`Symptom duration: ${duration}`); }
+            if (score === 0) reasons.push('No high-risk indicators detected in responses');
+
+            let level = 'NORMAL';
+            if (score >= 6) level = 'URGENT REVIEW';
+            else if (score >= 3) level = 'PRIORITY REVIEW';
+            return { level, reasons, score };
+        }
+
+        const priorityTone = (level) => {
+            if (level === 'URGENT REVIEW' || level === 'HIGH') return 'urgent';
+            if (level === 'PRIORITY REVIEW' || level === 'MEDIUM') return 'amber';
+            return 'okgreen';
+        };
+
+        /* ============================== SHARED UI ============================== */
+        function Badge({ tone = 'navy', children, size = 'sm' }) {
+            const tones = {
+                navy: 'bg-navy-50 text-navy-500', brand: 'bg-brand-50 text-brand-600', cyan: 'bg-cyan-50 text-cyan-600',
+                okgreen: 'bg-okgreen-50 text-okgreen-600', amber: 'bg-amber-50 text-amber-600', urgent: 'bg-urgent-50 text-urgent-600',
+                grey: 'bg-slate-100 text-slate-600',
+            };
+            const sizes = { sm: 'text-xs px-2 py-0.5', md: 'text-sm px-2.5 py-1' };
+            return <span className={`inline-flex items-center gap-1 rounded-full font-medium ${tones[tone]} ${sizes[size]}`}>{children}</span>;
+        }
+
+        function StatusBadge({ status }) {
+            const map = {
+                'Registered': 'grey', 'Case Taking': 'grey', 'Submitted': 'cyan', 'Under Triage': 'amber', 'Assigned': 'brand',
+                'Waiting for Consultation': 'amber', 'In Consultation': 'cyan', 'Completed': 'okgreen', 'Follow-up': 'navy',
+                'Pending': 'amber', 'Unassigned': 'grey',
+            };
+            return <Badge tone={map[status] || 'grey'}>{status}</Badge>;
+        }
+
+        function PriorityBadge({ level }) {
+            const tone = priorityTone(level);
+            const iconName = tone === 'urgent' ? 'alert' : (tone === 'amber' ? 'clock' : 'checkCircle');
+            return <Badge tone={tone} size="md"><Icon name={iconName} size={13} /> {level}</Badge>;
+        }
+
+        function Btn({ children, onClick, variant = 'primary', className = '', icon, disabled, type = 'button', size = 'md' }) {
+            const base = "scale-btn inline-flex items-center justify-center gap-2 rounded-xl font-semibold focus-ring disabled:opacity-40 disabled:cursor-not-allowed";
+            const sizes = { md: 'px-5 py-2.5 text-sm', lg: 'px-6 py-3.5 text-base', sm: 'px-3.5 py-2 text-xs' };
+            const variants = {
+                primary: 'bg-brand-500 text-white hover:bg-brand-600 shadow-card',
+                dark: 'bg-navy-500 text-white hover:bg-navy-600 shadow-card',
+                outline: 'border border-slate-200 text-navy-500 bg-white hover:border-brand-400 hover:text-brand-500',
+                ghost: 'text-navy-500 hover:bg-slate-100',
+                danger: 'bg-urgent-500 text-white hover:bg-urgent-600',
+                success: 'bg-okgreen-500 text-white hover:bg-okgreen-600',
+            };
+            return (
+                <button type={type} disabled={disabled} onClick={onClick} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}>
+                    {icon && <Icon name={icon} size={16} />}{children}
+                </button>
+            );
+        }
+
+        function Card({ children, className = '', padded = true }) {
+            return <div className={`bg-white rounded-2xl shadow-card border border-slate-100 ${padded ? 'p-5 sm:p-6' : ''} ${className}`}>{children}</div>;
+        }
+
+        function SectionLabel({ children }) {
+            return <div className="text-[13px] font-semibold text-muted mb-2">{children}</div>;
+        }
+
+        function ProgressDots({ total, current }) {
+            return (
+                <div className="flex items-center gap-1.5">
+                    {Array.from({ length: total }).map((_, i) => (
+                        <div key={i} className={`h-1.5 rounded-full transition-all ${i === current ? 'w-8 bg-cyan-500' : i < current ? 'w-4 bg-brand-400' : 'w-4 bg-slate-200'}`} />
+                    ))}
+                </div>
+            );
+        }
+
+        function WizardShell({ step, total, title, subtitle, onBack, children, wide = false }) {
+            return (
+                <div className="min-h-screen bg-shell flex flex-col">
+                    <div className="px-5 sm:px-10 pt-6 pt-safe flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-navy-500 text-white flex items-center justify-center"><Icon name="logo" size={18} /></div>
+                            <span className="font-display font-bold text-navy-500 text-lg">MedTech</span>
+                        </div>
+                        <ProgressDots total={total} current={step} />
+                    </div>
+                    <div className={`flex-1 flex items-center justify-center px-5 sm:px-10 py-8`}>
+                        <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} fade-in`}>
+                            {onBack && (
+                                <button onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-navy-500 focus-ring rounded-lg px-1">
+                                    <Icon name="chevronLeft" size={16} /> Back
+                                </button>
+                            )}
+                            {title && <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-500 mb-1.5">{title}</h1>}
+                            {subtitle && <p className="text-muted text-[15px] mb-6 leading-relaxed">{subtitle}</p>}
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function Chip({ active, onClick, children, className = '' }) {
+            return (
+                <button onClick={onClick} className={`scale-btn focus-ring rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors
+      ${active ? 'border-brand-500 bg-brand-50 text-brand-600' : 'border-slate-200 bg-white text-navy-500 hover:border-brand-300'} ${className}`}>
+                    {children}
+                </button>
+            );
+        }
+
+        function Field({ label, children, hint }) {
+            return (
+                <label className="block mb-4">
+                    <div className="text-sm font-semibold text-navy-500 mb-1.5">{label}</div>
+                    {children}
+                    {hint && <div className="text-xs text-muted mt-1">{hint}</div>}
+                </label>
+            );
+        }
+
+        function Input(props) {
+            return <input {...props} className={`w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus-ring focus:border-brand-400 ${props.className || ''}`} />;
+        }
+        function Select(props) {
+            return <select {...props} className={`w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus-ring focus:border-brand-400 bg-white ${props.className || ''}`} />;
+        }
+
+        function ScaleSlider({ value, onChange }) {
+            const tone = value >= 7 ? 'text-urgent-500' : value >= 4 ? 'text-amber-500' : 'text-okgreen-500';
+            return (
+                <div>
+                    <div className="flex items-end justify-between mb-2">
+                        <span className="text-xs text-muted">No pain</span>
+                        <span className={`font-display text-3xl font-bold ${tone}`}>{value}</span>
+                        <span className="text-xs text-muted">Worst pain</span>
+                    </div>
+                    <input type="range" min="1" max="10" value={value} onChange={e => onChange(Number(e.target.value))}
+                        className="w-full accent-brand-500 h-2" />
+                    <div className="flex justify-between mt-1">
+                        {Array.from({ length: 10 }).map((_, i) => (<span key={i} className="text-[10px] text-slate-300">{i + 1}</span>))}
+                    </div>
+                </div>
+            );
+        }
+
+        function EmptyState({ icon = 'clipboard', title, desc }) {
+            return (
+                <div className="text-center py-10">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-3"><Icon name={icon} size={24} /></div>
+                    <div className="font-semibold text-navy-500">{title}</div>
+                    {desc && <div className="text-sm text-muted mt-1">{desc}</div>}
+                </div>
+            );
+        }
+
+        /* ============================== APP SHELL (dashboard layout) ============================== */
+        const NAV = {
+            patient: [
+                { id: 'patientHome', label: 'Dashboard', icon: 'dashboard' },
+                { id: 'patientHistory', label: 'Medical History', icon: 'clipboard' },
+                { id: 'patientDocs', label: 'Documents', icon: 'file' },
+                { id: 'patientTimeline', label: 'Timeline', icon: 'history' },
+                { id: 'patientFollowups', label: 'Appointments', icon: 'calendar' },
+            ],
+            doctor: [
+                { id: 'doctorHome', label: 'Dashboard', icon: 'dashboard' },
+                { id: 'doctorAssigned', label: 'Assigned Cases', icon: 'clipboard' },
+                { id: 'doctorPriority', label: 'Priority Cases', icon: 'alert' },
+                { id: 'doctorPatients', label: 'Patients', icon: 'users' },
+                { id: 'doctorFollowups', label: 'Follow-ups', icon: 'calendar' },
+            ],
+            admin: [
+                { id: 'adminHome', label: 'Overview', icon: 'dashboard' },
+                { id: 'adminTriage', label: 'Triage Queue', icon: 'activity' },
+                { id: 'adminDoctors', label: 'Doctors', icon: 'stethoscope' },
+                { id: 'adminPatients', label: 'Patients', icon: 'users' },
+                { id: 'adminDepartments', label: 'Departments', icon: 'building' },
+                { id: 'adminAudit', label: 'Audit Log', icon: 'shield' },
+                { id: 'adminSettings', label: 'Settings', icon: 'settings' },
+            ],
+        };
+
+        function Sidebar({ role, active, setActive, onLogout, onSwitchRole }) {
+            const items = NAV[role] || [];
+            const roleLabel = { patient: 'Patient', doctor: 'Doctor', admin: 'Admin / Staff' }[role];
+            return (
+                <div className="hidden md:flex md:flex-col w-64 bg-navy-500 text-white shrink-0 pb-safe">
+                    <div className="px-5 py-5 flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"><Icon name="logo" size={18} /></div>
+                        <div>
+                            <div className="font-display font-bold leading-tight">MedTech</div>
+                            <div className="text-[11px] text-navy-100/70">{roleLabel}</div>
+                        </div>
+                    </div>
+                    <nav className="flex-1 px-3 mt-2 space-y-1">
+                        {items.map(it => (
+                            <button key={it.id} onClick={() => setActive(it.id)}
+                                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors focus-ring
+              ${active === it.id ? 'bg-white text-navy-500' : 'text-navy-50/85 hover:bg-white/10'}`}>
+                                <Icon name={it.icon} size={17} /> {it.label}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="px-3 pb-5 space-y-1 border-t border-white/10 pt-3 mx-3">
+                        <button onClick={onSwitchRole} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-cyan-200 hover:bg-white/10 focus-ring">
+                            <Icon name="swap" size={17} /> Demo: Switch Role
+                        </button>
+                        <button onClick={onLogout} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-navy-50/85 hover:bg-white/10 focus-ring">
+                            <Icon name="logout" size={17} /> Log out
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function MobileNav({ role, active, setActive }) {
+            const items = (NAV[role] || []).slice(0, 5);
+            return (
+                <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex pb-safe z-30">
+                    {items.map(it => (
+                        <button key={it.id} onClick={() => setActive(it.id)} className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium ${active === it.id ? 'text-brand-500' : 'text-muted'}`}>
+                            <Icon name={it.icon} size={18} /> {it.label.split(' ')[0]}
+                        </button>
+                    ))}
+                </div>
+            );
+        }
+
+        function TopBar({ title, user, notifications, onOpenNotif, notifOpen, onSearch, searchQuery, searchResults, onSwitchRole }) {
+            return (
+                <div className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-100 px-5 sm:px-8 py-3.5 flex items-center justify-between gap-4 pt-safe">
+                    <div>
+                        <h2 className="font-display text-lg sm:text-xl font-bold text-navy-500">{title}</h2>
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="relative hidden sm:block">
+                            <Icon name="search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input value={searchQuery} onChange={e => onSearch(e.target.value)} placeholder="Search patient, case ID, doctor..."
+                                className="pl-9 pr-3 py-2 w-64 rounded-xl border border-slate-200 text-sm focus-ring focus:border-brand-400" />
+                            {searchQuery && (
+                                <div className="absolute mt-1.5 w-full bg-white rounded-xl shadow-card border border-slate-100 max-h-64 overflow-auto z-30">
+                                    {searchResults.length === 0 && <div className="p-3 text-sm text-muted">No matches</div>}
+                                    {searchResults.map(c => (
+                                        <div key={c.id} className="p-3 border-b border-slate-50 last:border-0 text-sm">
+                                            <div className="font-semibold text-navy-500">{c.patient} <span className="text-muted font-normal">· {c.id}</span></div>
+                                            <div className="text-xs text-muted">{c.department} · {c.doctor}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <button className="relative p-2.5 rounded-xl hover:bg-slate-100 focus-ring" onClick={onOpenNotif}>
+                            <Icon name="bell" size={19} className="text-navy-500" />
+                            {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-urgent-500" />}
+                        </button>
+                        {notifOpen && (
+                            <div className="absolute right-6 sm:right-10 top-14 w-80 bg-white rounded-2xl shadow-card border border-slate-100 z-30 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-slate-100 font-semibold text-navy-500 text-sm">Notifications</div>
+                                <div className="max-h-72 overflow-auto">
+                                    {notifications.length === 0 && <div className="p-4 text-sm text-muted">You're all caught up.</div>}
+                                    {notifications.map((n, i) => (
+                                        <div key={i} className="px-4 py-3 border-b border-slate-50 last:border-0 flex gap-2.5">
+                                            <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${n.tone === 'urgent' ? 'bg-urgent-50 text-urgent-500' : 'bg-cyan-50 text-cyan-600'}`}>
+                                                <Icon name={n.icon || 'bell'} size={14} />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm text-navy-500 leading-snug">{n.text}</div>
+                                                <div className="text-[11px] text-muted mt-0.5">{n.time}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200">
+                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-semibold text-xs">{user.initials}</div>
+                            <div className="hidden sm:block">
+                                <div className="text-sm font-semibold text-navy-500 leading-tight">{user.name}</div>
+                                <div className="text-[11px] text-muted leading-tight">{user.sub}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ============================== PATIENT ONBOARDING WIZARD ============================== */
+
+        function ScreenLogin({ onLogin }) {
+            const [email, setEmail] = useState(''); const [pass, setPass] = useState('');
+            return (
+                <div className="min-h-screen bg-navy-500 flex flex-col md:flex-row">
+                    <div className="md:w-1/2 flex flex-col justify-center px-8 sm:px-16 py-16 text-white relative overflow-hidden">
+                        <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-cyan-500/10" />
+                        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-brand-400/10" />
+                        <div className="relative fade-in">
+                            <div className="flex items-center gap-2.5 mb-10">
+                                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><Icon name="logo" size={20} /></div>
+                                <span className="font-display font-bold text-xl">MedTech</span>
+                            </div>
+                            <h1 className="font-display text-4xl sm:text-5xl font-bold leading-[1.1] mb-4">Case-taking,<br />done before<br />the doctor walks in.</h1>
+                            <p className="text-navy-100/80 text-[15px] max-w-sm leading-relaxed mb-8">Patients describe symptoms in their own language. MedTech structures the history, digitizes old reports, and flags what needs urgent attention — so the doctor starts with the full picture.</p>
+                            <div className="flex items-center gap-6 text-sm text-navy-100/70">
+                                <div className="flex items-center gap-2"><Icon name="shield" size={16} /> AI-assisted, doctor-verified</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="md:w-1/2 bg-shell flex items-center justify-center px-6 py-14">
+                        <Card className="w-full max-w-sm fade-in">
+                            <h2 className="font-display text-xl font-bold text-navy-500 mb-1">Sign in</h2>
+                            <p className="text-sm text-muted mb-5">Use a demo account or your hospital credentials.</p>
+                            <Field label="Email or mobile number"><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@hospital.com" /></Field>
+                            <Field label="Password"><Input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" /></Field>
+                            <Btn className="w-full mb-4" size="lg" onClick={() => onLogin('patient')}>Login</Btn>
+                            <div className="flex items-center gap-3 text-xs text-slate-300 mb-4"><div className="flex-1 h-px bg-slate-200" />OR CONTINUE AS<div className="flex-1 h-px bg-slate-200" /></div>
+                            <div className="grid grid-cols-1 gap-2">
+                                <Btn variant="outline" icon="user" onClick={() => onLogin('patient')}>Continue as Demo Patient</Btn>
+                                <Btn variant="outline" icon="stethoscope" onClick={() => onLogin('doctor')}>Continue as Demo Doctor</Btn>
+                                <Btn variant="outline" icon="shield" onClick={() => onLogin('admin')}>Continue as Admin</Btn>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        function ScreenLanguage({ onNext, onBack, language, setLanguage }) {
+            const [textSize, setTextSize] = useState('Standard'); const [access, setAccess] = useState(false);
+            return (
+                <WizardShell step={0} total={9} onBack={onBack} title="Choose your language"
+                    subtitle="Choose your preferred language for the consultation process. You can change this anytime.">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                        {LANGUAGES.map(l => (
+                            <button key={l.code} onClick={() => setLanguage(l)} className={`scale-btn focus-ring rounded-2xl border p-4 text-left transition-colors
+            ${language.code === l.code ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-brand-300'}`}>
+                                <div className="font-display text-lg font-bold text-navy-500">{l.native}</div>
+                                <div className="text-xs text-muted">{l.label}</div>
+                            </button>
+                        ))}
+                    </div>
+                    <Card className="mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-navy-500"><Icon name="mic" size={16} /> Voice language</div>
+                            <span className="text-sm text-muted">{language.native}</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="text-sm font-semibold text-navy-500">Text size</div>
+                            <div className="flex gap-1.5">
+                                {['Standard', 'Large', 'Extra large'].map(s => (
+                                    <Chip key={s} active={textSize === s} onClick={() => setTextSize(s)}>{s}</Chip>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm font-semibold text-navy-500">Accessibility mode</div>
+                            <button onClick={() => setAccess(!access)} className={`w-11 h-6 rounded-full transition-colors relative focus-ring ${access ? 'bg-brand-500' : 'bg-slate-200'}`}>
+                                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${access ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+                    </Card>
+                    <Btn className="w-full" size="lg" onClick={onNext}>Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        function ScreenConsent({ onNext, onBack }) {
+            const [agree, setAgree] = useState(false);
+            return (
+                <WizardShell step={1} total={9} onBack={onBack} title="Your privacy, protected"
+                    subtitle="Before we begin, here's how your information is handled.">
+                    <div className="space-y-3 mb-6">
+                        {[
+                            { icon: 'clipboard', t: 'Why we collect this', d: 'To prepare a structured case history so your doctor can review it before your consultation.' },
+                            { icon: 'lock', t: 'How it is used', d: 'Used only by your care team for this visit and stored in your hospital medical record.' },
+                            { icon: 'shield', t: 'Privacy statement', d: 'Your data is never shared with third parties without your explicit consent.' },
+                            { icon: 'eye', t: 'Data security', d: 'All information is encrypted in transit and at rest, with full access audit trails.' },
+                        ].map((r, i) => (
+                            <Card key={i} className="flex gap-3.5 items-start">
+                                <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0"><Icon name={r.icon} size={17} /></div>
+                                <div><div className="font-semibold text-navy-500 text-sm">{r.t}</div><div className="text-sm text-muted mt-0.5 leading-relaxed">{r.d}</div></div>
+                            </Card>
+                        ))}
+                    </div>
+                    <label className="flex items-start gap-3 p-4 rounded-xl bg-white border border-slate-200 mb-6 cursor-pointer">
+                        <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} className="mt-1 w-4 h-4 accent-brand-500" />
+                        <span className="text-sm text-navy-500">I understand and consent to sharing my information for this medical case-taking process.</span>
+                    </label>
+                    <Btn className="w-full" size="lg" disabled={!agree} onClick={onNext}>Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        function ScreenProfile({ onNext, onBack, profile, setProfile }) {
+            const up = (k) => (e) => setProfile({ ...profile, [k]: e.target.value });
+            const ready = profile.name && profile.age && profile.gender && profile.phone;
+            return (
+                <WizardShell step={2} total={9} onBack={onBack} wide title="Tell us about yourself"
+                    subtitle="This information is saved to your patient profile for future visits.">
+                    <div className="grid sm:grid-cols-2 gap-x-4">
+                        <Field label="Full name"><Input value={profile.name} onChange={up('name')} placeholder="e.g. Rahul Kumar" /></Field>
+                        <Field label="Age"><Input type="number" value={profile.age} onChange={up('age')} placeholder="e.g. 42" /></Field>
+                        <Field label="Gender">
+                            <Select value={profile.gender} onChange={up('gender')}>
+                                <option value="">Select</option><option>Male</option><option>Female</option><option>Other</option>
+                            </Select>
+                        </Field>
+                        <Field label="Phone number"><Input value={profile.phone} onChange={up('phone')} placeholder="+91 98xxxxxxxx" /></Field>
+                        <Field label="Blood group">
+                            <Select value={profile.blood} onChange={up('blood')}>
+                                <option value="">Select</option>{['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(b => <option key={b}>{b}</option>)}
+                            </Select>
+                        </Field>
+                        <Field label="Emergency contact"><Input value={profile.emergency} onChange={up('emergency')} placeholder="Name & phone number" /></Field>
+                        <Field label="Known allergies"><Input value={profile.allergies} onChange={up('allergies')} placeholder="e.g. Penicillin, none" /></Field>
+                        <Field label="Existing conditions"><Input value={profile.conditions} onChange={up('conditions')} placeholder="e.g. Hypertension" /></Field>
+                        <div className="sm:col-span-2">
+                            <Field label="Current medicines"><Input value={profile.medicines} onChange={up('medicines')} placeholder="e.g. Amlodipine 5mg once daily" /></Field>
+                        </div>
+                    </div>
+                    <Btn className="w-full" size="lg" disabled={!ready} onClick={onNext}>Save & Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        function ScreenDepartment({ onNext, onBack, department, setDepartment }) {
+            return (
+                <WizardShell step={3} total={9} onBack={onBack} wide title="Which department is this visit for?"
+                    subtitle="Choose the department that best matches your concern.">
+                    <div className="grid sm:grid-cols-2 gap-3 mb-6">
+                        {DEPARTMENTS.map(d => (
+                            <button key={d.id} onClick={() => setDepartment(d)} className={`scale-btn focus-ring text-left rounded-2xl border p-4 flex items-start gap-3.5 transition-colors
+            ${department.id === d.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-brand-300'}`}>
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${department.id === d.id ? 'bg-brand-500 text-white' : 'bg-cyan-50 text-cyan-600'}`}><Icon name={d.icon} size={18} /></div>
+                                <div><div className="font-semibold text-navy-500 text-sm">{d.name}</div><div className="text-xs text-muted mt-0.5">{d.desc}</div></div>
+                            </button>
+                        ))}
+                    </div>
+                    <Btn className="w-full" size="lg" disabled={!department.id} onClick={onNext}>Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        function WaveIcon() {
+            return (
+                <div className="flex items-end gap-1 h-8">
+                    {[6, 14, 22, 14, 9, 18, 10].map((h, i) => (
+                        <span key={i} className="wave-bar w-1.5 rounded-full bg-white" style={{ height: h, animationDelay: `${i * 0.09}s` }} />
+                    ))}
+                </div>
+            );
+        }
+
+        function ScreenComplaint({ onNext, onBack, complaint, setComplaint }) {
+            const [mode, setMode] = useState('text');
+            const [recording, setRecording] = useState(false);
+            const quickOptions = ['Fever', 'Chest pain', 'Headache', 'Stomach pain', 'Cough & cold', 'Body ache', 'Skin rash', 'Joint pain'];
+
+            const startVoice = () => {
+                setRecording(true);
+                setTimeout(() => { setRecording(false); setComplaint('I have chest pain since 3 days.'); }, 1800);
+            };
+
+            return (
+                <WizardShell step={4} total={9} onBack={onBack} wide title="What brings you to the hospital today?"
+                    subtitle="Describe your main concern — by voice, text, or a quick selection.">
+                    <div className="flex gap-2 mb-5">
+                        {[['text', 'Text'], ['voice', 'Voice'], ['touch', 'Quick select']].map(([id, label]) => (
+                            <Chip key={id} active={mode === id} onClick={() => setMode(id)}>
+                                <Icon name={id === 'text' ? 'text' : id === 'voice' ? 'mic' : 'touch'} size={14} /> {label}
+                            </Chip>
+                        ))}
+                    </div>
+
+                    {mode === 'text' && (
+                        <Card className="mb-6">
+                            <textarea value={complaint} onChange={e => setComplaint(e.target.value)} rows={4}
+                                placeholder="e.g. I have chest pain since 3 days."
+                                className="w-full resize-none border-0 focus:outline-none text-[15px] text-navy-500 placeholder:text-slate-300" />
+                        </Card>
+                    )}
+
+                    {mode === 'voice' && (
+                        <Card className="mb-6 bg-navy-500 text-white flex flex-col items-center py-10">
+                            {!recording && !complaint && <p className="text-navy-100/80 text-sm mb-5">Tap to speak your complaint</p>}
+                            {recording && <p className="text-cyan-200 text-sm mb-5">Listening…</p>}
+                            {!recording && complaint && (
+                                <div className="text-center mb-5">
+                                    <div className="text-xs text-navy-100/60 mb-1">We heard:</div>
+                                    <div className="font-display text-lg font-semibold">"{complaint}"</div>
+                                </div>
+                            )}
+                            <button onClick={startVoice} className={`w-16 h-16 rounded-full flex items-center justify-center focus-ring scale-btn ${recording ? 'bg-urgent-500' : 'bg-cyan-500'}`}>
+                                {recording ? <WaveIcon /> : <Icon name="mic" size={26} />}
+                            </button>
+                        </Card>
+                    )}
+
+                    {mode === 'touch' && (
+                        <div className="grid grid-cols-2 gap-2.5 mb-6">
+                            {quickOptions.map(o => (
+                                <Chip key={o} active={complaint === o} onClick={() => setComplaint(o)} className="text-center">{o}</Chip>
+                            ))}
+                        </div>
+                    )}
+
+                    {complaint && (
+                        <Card className="mb-6 flex items-center gap-3 bg-cyan-50 border-cyan-100">
+                            <Icon name="checkCircle" size={18} className="text-cyan-600 shrink-0" />
+                            <div className="text-sm">
+                                <span className="text-muted">Extracted — </span>
+                                <span className="font-semibold text-navy-500">Complaint: {complaint.replace(/i have|since|\.$/gi, '').trim() || complaint}</span>
+                            </div>
+                        </Card>
+                    )}
+
+                    <Btn className="w-full" size="lg" disabled={!complaint} onClick={onNext}>Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        /* ============================== ADAPTIVE CASE-TAKING ENGINE ============================== */
+        function buildQuestionPlan(answers) {
+            const plan = [
+                { id: 'onset', text: 'When did the pain start?', type: 'chips', options: ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'] },
+                { id: 'severity', text: 'How severe is the pain right now?', type: 'scale' },
+                { id: 'worseActivity', text: 'Does the pain increase during physical activity?', type: 'yesno' },
+                { id: 'shortBreath', text: 'Do you have shortness of breath?', type: 'yesno' },
+            ];
+            if (answers.shortBreath === 'Yes') {
+                plan.push({ id: 'breathAtRest', text: 'Does the shortness of breath happen even at rest?', type: 'yesno' });
+            }
+            plan.push({ id: 'onMed', text: 'Are you currently taking any medication for this?', type: 'yesno' });
+            if (answers.onMed === 'Yes') {
+                plan.push({ id: 'medName', text: 'What medication are you taking?', type: 'text' });
+            }
+            plan.push({ id: 'before', text: 'Have you had similar pain before?', type: 'yesno' });
+            plan.push({ id: 'associated', text: 'Any symptoms along with the pain?', type: 'multi', options: SYMPTOM_CHIPS });
+            return plan;
+        }
+
+        function ScreenAdaptive({ onNext, onBack, answers, setAnswers }) {
+            const plan = useMemo(() => buildQuestionPlan(answers), [answers.shortBreath, answers.onMed]);
+            const [idx, setIdx] = useState(0);
+            const q = plan[idx];
+            const val = answers[q.id];
+
+            const setVal = (v) => setAnswers({ ...answers, [q.id]: v });
+            const toggleMulti = (opt) => {
+                const cur = new Set(val || []);
+                if (opt === 'None of these') { setVal(['None of these']); return; }
+                cur.delete('None of these');
+                cur.has(opt) ? cur.delete(opt) : cur.add(opt);
+                setVal(Array.from(cur));
+            };
+
+            const canNext = q.type === 'multi' ? (val && val.length > 0) : (val !== undefined && val !== '');
+
+            const goNext = () => { if (idx < plan.length - 1) setIdx(idx + 1); else onNext(); };
+            const goBack = () => { if (idx > 0) setIdx(idx - 1); else onBack(); };
+
+            return (
+                <WizardShell step={5} total={9} onBack={goBack} title="Let's understand your symptoms" subtitle="Answer one question at a time — this helps your doctor prepare before you arrive.">
+                    <div className="mb-4 text-xs font-semibold text-brand-500">Question {idx + 1} of {plan.length}</div>
+                    <Card className="mb-6">
+                        <div className="font-display text-lg font-semibold text-navy-500 mb-5">{q.text}</div>
+                        {q.type === 'chips' && (
+                            <div className="flex flex-wrap gap-2">{q.options.map(o => <Chip key={o} active={val === o} onClick={() => setVal(o)}>{o}</Chip>)}</div>
+                        )}
+                        {q.type === 'scale' && <ScaleSlider value={val || 5} onChange={setVal} />}
+                        {q.type === 'yesno' && (
+                            <div className="flex gap-2.5">
+                                {['Yes', 'No'].map(o => (
+                                    <button key={o} onClick={() => setVal(o)} className={`scale-btn focus-ring flex-1 rounded-xl border py-3 font-semibold text-sm
+                ${val === o ? (o === 'Yes' ? 'border-urgent-500 bg-urgent-50 text-urgent-600' : 'border-okgreen-500 bg-okgreen-50 text-okgreen-600') : 'border-slate-200 text-navy-500 hover:border-brand-300'}`}>{o}</button>
+                                ))}
+                            </div>
+                        )}
+                        {q.type === 'text' && <Input value={val || ''} onChange={e => setVal(e.target.value)} placeholder="Type your answer" />}
+                        {q.type === 'multi' && (
+                            <div className="flex flex-wrap gap-2">{q.options.map(o => <Chip key={o} active={(val || []).includes(o)} onClick={() => toggleMulti(o)}>{o}</Chip>)}</div>
+                        )}
+                    </Card>
+                    <div className="flex gap-3">
+                        <Btn variant="outline" onClick={goBack} icon="chevronLeft">Back</Btn>
+                        <Btn className="flex-1" disabled={!canNext} onClick={goNext}>{idx < plan.length - 1 ? 'Next' : 'Save & Continue'} <Icon name="chevronRight" size={16} /></Btn>
+                    </div>
+                </WizardShell>
+            );
+        }
+
+        /* ---------- AYUSH mode (only when department === ayurveda) ---------- */
+        const AYUSH_FIELDS = [
+            { id: 'prakriti', label: 'Prakriti (body constitution)', options: ['Vata', 'Pitta', 'Kapha', 'Mixed'] },
+            { id: 'vikriti', label: 'Vikriti (current imbalance)', options: ['Vata excess', 'Pitta excess', 'Kapha excess', 'Balanced'] },
+            { id: 'agni', label: 'Agni (digestive fire)', options: ['Weak', 'Regular', 'Sharp/Irregular', 'Balanced'] },
+            { id: 'koshtha', label: 'Koshtha (bowel nature)', options: ['Hard', 'Soft', 'Regular'] },
+            { id: 'ahara', label: 'Ahara (diet pattern)', options: ['Vegetarian', 'Non-vegetarian', 'Mixed', 'Irregular timing'] },
+            { id: 'vihara', label: 'Vihara (lifestyle activity)', options: ['Sedentary', 'Moderately active', 'Very active'] },
+            { id: 'sleep', label: 'Sleep pattern', options: ['Disturbed', '6-7 hrs', '7-8+ hrs'] },
+            { id: 'lifestyle', label: 'Lifestyle stress level', options: ['Low', 'Moderate', 'High'] },
+        ];
+        function ScreenAyush({ onNext, onBack, ayush, setAyush }) {
+            return (
+                <WizardShell step={6} total={9} onBack={onBack} wide title="Ayurvedic assessment" subtitle="Additional AYUSH-specific history, shown because you selected Ayurveda.">
+                    <div className="space-y-4 mb-6">
+                        {AYUSH_FIELDS.map(f => (
+                            <Card key={f.id}>
+                                <div className="text-sm font-semibold text-navy-500 mb-2.5 flex items-center gap-2"><Icon name="leaf" size={14} className="text-okgreen-500" />{f.label}</div>
+                                <div className="flex flex-wrap gap-2">{f.options.map(o => <Chip key={o} active={ayush[f.id] === o} onClick={() => setAyush({ ...ayush, [f.id]: o })}>{o}</Chip>)}</div>
+                            </Card>
+                        ))}
+                    </div>
+                    <Btn className="w-full" size="lg" onClick={onNext}>Continue <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        /* ============================== OCR DOCUMENT UPLOAD ============================== */
+        const OCR_STAGES = ['Uploading…', 'Extracting text…', 'Identifying medical information…', 'Processing complete.'];
+        const OCR_RESULT = [
+            { label: 'Medication', value: 'Amlodipine 5 mg' },
+            { label: 'Blood Pressure', value: '150/95' },
+            { label: 'Date', value: '12 Aug 2026' },
+            { label: 'Test', value: 'HbA1c' },
+            { label: 'Value', value: '8.2%' },
+        ];
+
+        function ScreenUpload({ onNext, onBack, documents, setDocuments }) {
+            const [stage, setStage] = useState(-1);
+            const [done, setDone] = useState(false);
+            const timerRef = useRef(null);
+
+            const simulate = () => {
+                setStage(0); setDone(false);
+                let s = 0;
+                timerRef.current = setInterval(() => {
+                    s += 1;
+                    if (s >= OCR_STAGES.length) { clearInterval(timerRef.current); setDone(true); setStage(OCR_STAGES.length - 1); }
+                    else setStage(s);
+                }, 650);
+            };
+            useEffect(() => () => clearInterval(timerRef.current), []);
+
+            const addToHistory = () => {
+                setDocuments([...documents, { type: 'Prescription', name: 'old_prescription_scan.jpg', extracted: OCR_RESULT, date: '12 Aug 2026' }]);
+                setStage(-1); setDone(false);
+            };
+
+            return (
+                <WizardShell step={7} total={9} onBack={onBack} wide title="Upload previous medical records" subtitle="Prescriptions, lab reports, discharge summaries or scanned images — we'll digitize them automatically.">
+                    {documents.length > 0 && (
+                        <div className="mb-5 space-y-2">
+                            {documents.map((d, i) => (
+                                <Card key={i} className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-okgreen-50 text-okgreen-600 flex items-center justify-center shrink-0"><Icon name="file" size={16} /></div>
+                                    <div className="flex-1 text-sm"><span className="font-semibold text-navy-500">{d.type}</span><span className="text-muted"> · {d.name} · added {d.date}</span></div>
+                                    <Icon name="checkCircle" size={16} className="text-okgreen-500" />
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+
+                    {stage === -1 && (
+                        <button onClick={simulate} className="scale-btn focus-ring w-full rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-brand-400 py-12 flex flex-col items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center"><Icon name="upload" size={22} /></div>
+                            <div className="text-sm font-semibold text-navy-500">Drag & drop a file, or tap to select</div>
+                            <div className="text-xs text-muted">Prescription · Lab report · Discharge summary · Image / PDF</div>
+                        </button>
+                    )}
+
+                    {stage > -1 && !done && (
+                        <Card className="mb-6">
+                            <div className="space-y-3">
+                                {OCR_STAGES.map((s, i) => (
+                                    <div key={s} className="flex items-center gap-3">
+                                        {i < stage ? <Icon name="checkCircle" size={16} className="text-okgreen-500" /> :
+                                            i === stage ? <div className="w-4 h-4 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" /> :
+                                                <div className="w-4 h-4 rounded-full border-2 border-slate-200" />}
+                                        <span className={`text-sm ${i <= stage ? 'text-navy-500 font-medium' : 'text-slate-300'}`}>{s}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
+
+                    {done && (
+                        <Card className="mb-6 fade-in">
+                            <div className="flex items-center gap-2 text-okgreen-600 font-semibold text-sm mb-4"><Icon name="checkCircle" size={16} /> Processing complete</div>
+                            <div className="grid grid-cols-2 gap-4 mb-5">
+                                {OCR_RESULT.map(r => (
+                                    <div key={r.label}><div className="text-xs text-muted mb-0.5">{r.label}</div><div className="font-semibold text-navy-500 text-sm">{r.value}</div></div>
+                                ))}
+                            </div>
+                            <Btn className="w-full" onClick={addToHistory}>Add to Medical History</Btn>
+                        </Card>
+                    )}
+
+                    <div className="flex gap-3">
+                        <Btn variant="outline" onClick={onBack} icon="chevronLeft">Back</Btn>
+                        <Btn className="flex-1" onClick={onNext}>{documents.length ? 'Continue' : 'Skip for now'} <Icon name="chevronRight" size={16} /></Btn>
+                    </div>
+                </WizardShell>
+            );
+        }
+
+        /* ============================== PRIORITY SCREENING ============================== */
+        function ScreenPriority({ onNext, onBack, result }) {
+            const tone = priorityTone(result.level);
+            return (
+                <WizardShell step={8} total={9} onBack={onBack} title="Priority screening" subtitle="A transparent, rule-based check — not a diagnosis.">
+                    <Card className={`mb-5 border-2 ${tone === 'urgent' ? 'border-urgent-200 bg-urgent-50' : tone === 'amber' ? 'border-amber-200 bg-amber-50' : 'border-okgreen-200 bg-okgreen-50'}`}>
+                        <div className="text-xs font-semibold text-muted mb-1">CASE PRIORITY</div>
+                        <PriorityBadge level={result.level} />
+                        <div className="text-sm text-navy-500 mt-3">
+                            {tone === 'urgent' ? 'Requires prompt clinical review.' : tone === 'amber' ? 'Should be reviewed ahead of routine cases.' : 'No urgent indicators — standard queue.'}
+                        </div>
+                    </Card>
+                    <Card className="mb-6">
+                        <div className="text-sm font-semibold text-navy-500 mb-3">Why was this case flagged?</div>
+                        <ul className="space-y-2">
+                            {result.reasons.map((r, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-navy-500"><Icon name="chevronRight" size={14} className="text-cyan-500 mt-0.5 shrink-0" />{r}</li>
+                            ))}
+                        </ul>
+                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-muted flex items-start gap-2">
+                            <Icon name="shield" size={14} className="shrink-0 mt-0.5" />
+                            This is a rule-based screening to help sequence review — not a diagnosis. Your doctor makes the final clinical decision.
+                        </div>
+                    </Card>
+                    <Btn className="w-full" size="lg" onClick={onNext}>Continue to case review <Icon name="chevronRight" size={16} /></Btn>
+                </WizardShell>
+            );
+        }
+
+        /* ============================== CASE REVIEW & SUBMIT ============================== */
+        function ScreenReview({ onSubmit, onBack, onEdit, data }) {
+            const { profile, department, complaint, answers, documents, priority } = data;
+            const Row = ({ label, value }) => value ? (
+                <div className="flex justify-between py-2.5 border-b border-slate-100 last:border-0 gap-4">
+                    <span className="text-sm text-muted shrink-0">{label}</span>
+                    <span className="text-sm font-semibold text-navy-500 text-right">{value}</span>
+                </div>
+            ) : null;
+            return (
+                <WizardShell step={8} total={9} onBack={onBack} wide title="Review your case" subtitle="Please confirm the details below before submitting.">
+                    <Card className="mb-4">
+                        <div className="flex items-center justify-between mb-1"><SectionLabel>CASE REVIEW</SectionLabel><PriorityBadge level={priority.level} /></div>
+                        <Row label="Patient" value={profile.name} />
+                        <Row label="Department" value={department.name} />
+                        <Row label="Chief complaint" value={complaint} />
+                        <Row label="Symptom onset" value={answers.onset} />
+                        <Row label="Pain severity" value={answers.severity ? `${answers.severity}/10` : null} />
+                        <Row label="Shortness of breath" value={answers.shortBreath} />
+                        <Row label="Associated symptoms" value={(answers.associated || []).join(', ')} />
+                        <Row label="Past history" value={profile.conditions} />
+                        <Row label="Current medication" value={profile.medicines} />
+                        <Row label="Previous records" value={documents.length ? `${documents.length} document(s)` : 'None'} />
+                    </Card>
+                    <div className="flex gap-3">
+                        <Btn variant="outline" className="flex-1" icon="edit" onClick={onEdit}>Edit Case</Btn>
+                        <Btn className="flex-1" icon="check" onClick={onSubmit}>Submit Case</Btn>
+                    </div>
+                </WizardShell>
+            );
+        }
+
+        function ScreenSubmitted({ caseId, onDone }) {
+            return (
+                <div className="min-h-screen bg-navy-500 flex items-center justify-center px-6 text-white text-center">
+                    <div className="fade-in max-w-sm">
+                        <div className="w-16 h-16 rounded-2xl bg-okgreen-500 flex items-center justify-center mx-auto mb-5"><Icon name="check" size={30} /></div>
+                        <h1 className="font-display text-2xl font-bold mb-2">Case submitted</h1>
+                        <p className="text-navy-100/80 text-sm mb-1">Case ID</p>
+                        <p className="font-display text-3xl font-bold text-cyan-300 mb-6">{caseId}</p>
+                        <p className="text-navy-100/80 text-sm mb-8 leading-relaxed">Your case has moved to triage. You'll be notified once a doctor is assigned. Please take a seat in the waiting area.</p>
+                        <Btn className="w-full" size="lg" onClick={onDone}>Go to my dashboard <Icon name="chevronRight" size={16} /></Btn>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ============================== TIMELINE COMPONENT ============================== */
+        function TimelineList({ events }) {
+            const iconFor = (t) => ({ consultation: 'stethoscope', medicine: 'pill', lab: 'activity', visit: 'building', document: 'file' }[t] || 'clock');
+            return (
+                <div className="relative pl-8">
+                    <div className="absolute left-[13px] top-1 bottom-1 w-px bg-slate-200" />
+                    <div className="space-y-5">
+                        {events.map((e, i) => (
+                            <div key={i} className="relative">
+                                <div className="absolute -left-8 top-0 w-7 h-7 rounded-full bg-white border-2 border-cyan-500 text-cyan-600 flex items-center justify-center"><Icon name={iconFor(e.type)} size={13} /></div>
+                                <div className="text-xs text-muted mb-0.5">{e.year}</div>
+                                <div className="font-semibold text-navy-500 text-sm">{e.title}</div>
+                                {e.desc && <div className="text-xs text-muted mt-0.5">{e.desc}</div>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const baseTimeline = [
+            { year: '2024', type: 'consultation', title: 'Previous consultation', desc: 'General Medicine — routine checkup' },
+            { year: '2025', type: 'lab', title: 'Lab investigation', desc: 'HbA1c test — 8.2%' },
+            { year: '2025', type: 'medicine', title: 'Medication prescribed', desc: 'Amlodipine 5mg' },
+            { year: '2026', type: 'visit', title: 'Follow-up consultation', desc: 'Blood pressure review' },
+        ];
+
+        /* ============================== PATIENT DASHBOARD SCREENS ============================== */
+        function PatientHome({ data, setScreen }) {
+            const { activeCase, profile } = data;
+            const stepIdx = STATUS_FLOW.indexOf(activeCase ? activeCase.status : 'Registered');
+            return (
+                <div className="p-5 sm:p-8 space-y-6 pb-24 md:pb-8">
+                    <Card>
+                        <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-display font-bold text-navy-500">Welcome back, {profile.name || 'Patient'}</h3>
+                            {activeCase && <Badge tone="brand">Case {activeCase.id}</Badge>}
+                        </div>
+                        {activeCase ? (
+                            <>
+                                <p className="text-sm text-muted mb-5">{activeCase.complaint} · {activeCase.department}</p>
+                                <div className="flex items-center overflow-x-auto no-scrollbar gap-0 -mx-1 px-1">
+                                    {STATUS_FLOW.map((s, i) => (
+                                        <div key={s} className="flex items-center shrink-0">
+                                            <div className="flex flex-col items-center w-24">
+                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold
+                      ${i < stepIdx ? 'bg-okgreen-500 text-white' : i === stepIdx ? 'bg-cyan-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                                    {i < stepIdx ? <Icon name="check" size={12} /> : i + 1}
+                                                </div>
+                                                <div className={`text-[10px] text-center mt-1.5 leading-tight ${i <= stepIdx ? 'text-navy-500 font-medium' : 'text-slate-300'}`}>{s}</div>
+                                            </div>
+                                            {i < STATUS_FLOW.length - 1 && <div className={`h-px w-6 ${i < stepIdx ? 'bg-okgreen-400' : 'bg-slate-200'}`} />}
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="mt-2">
+                                <p className="text-sm text-muted mb-4">You don't have an active case right now.</p>
+                                <Btn icon="plus" onClick={() => setScreen('language')}>Start New Case</Btn>
+                            </div>
+                        )}
+                    </Card>
+
+                    <div className="grid sm:grid-cols-3 gap-4">
+                        <Card>
+                            <div className="text-xs text-muted mb-1">Current status</div>
+                            {activeCase ? <StatusBadge status={activeCase.status} /> : <Badge tone="grey">No active case</Badge>}
+                        </Card>
+                        <Card>
+                            <div className="text-xs text-muted mb-1">Assigned doctor</div>
+                            <div className="font-semibold text-navy-500 text-sm">{activeCase?.doctor && activeCase.doctor !== 'Unassigned' ? activeCase.doctor : 'Not yet assigned'}</div>
+                        </Card>
+                        <Card>
+                            <div className="text-xs text-muted mb-1">Upcoming follow-up</div>
+                            <div className="font-semibold text-navy-500 text-sm">{data.followup || 'None scheduled'}</div>
+                        </Card>
+                    </div>
+
+                    <Card padded={false}>
+                        <div className="p-5 pb-0 flex items-center justify-between">
+                            <h3 className="font-display font-bold text-navy-500">Previous cases</h3>
+                        </div>
+                        <div className="divide-y divide-slate-100 mt-3">
+                            {[{ id: '#0982', dep: 'Dermatology', date: '14 Jun 2026', status: 'Completed' }, { id: '#0871', dep: 'General Medicine', date: '02 Feb 2026', status: 'Completed' }].map(c => (
+                                <div key={c.id} className="px-5 py-3.5 flex items-center justify-between">
+                                    <div><div className="font-semibold text-navy-500 text-sm">{c.id} · {c.dep}</div><div className="text-xs text-muted">{c.date}</div></div>
+                                    <StatusBadge status={c.status} />
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function PatientHistory({ data }) {
+            const { profile, answers } = data;
+            const sections = [
+                { t: 'Current Symptoms', items: [data.complaint, ...(answers.associated || [])].filter(Boolean) },
+                { t: 'Past Medical History', items: [profile.conditions].filter(Boolean) },
+                { t: 'Allergies', items: [profile.allergies].filter(Boolean) },
+                { t: 'Current Medicines', items: [profile.medicines].filter(Boolean) },
+                { t: 'Family History', items: ['No significant family history recorded'] },
+                { t: 'Lifestyle', items: ['Non-smoker', 'Occasional alcohol use'] },
+            ];
+            return (
+                <div className="p-5 sm:p-8 space-y-4 pb-24 md:pb-8">
+                    {sections.map(s => (
+                        <Card key={s.t}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold text-navy-500">{s.t}</h4>
+                                <button className="text-xs font-semibold text-brand-500 flex items-center gap-1"><Icon name="plus" size={13} />Add</button>
+                            </div>
+                            {s.items.length ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {s.items.map((it, i) => (
+                                        <span key={i} className="text-xs bg-slate-100 text-navy-500 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                                            {it} <Icon name="x" size={11} className="text-slate-400" />
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : <div className="text-xs text-muted">Nothing recorded yet.</div>}
+                        </Card>
+                    ))}
+                </div>
+            );
+        }
+
+        function PatientDocs({ documents }) {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    {documents.length === 0 ? <EmptyState icon="file" title="No documents yet" desc="Documents you upload during case-taking will appear here." /> : (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            {documents.map((d, i) => (
+                                <Card key={i}>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center"><Icon name="file" size={18} /></div>
+                                        <div><div className="font-semibold text-navy-500 text-sm">{d.type}</div><div className="text-xs text-muted">{d.name}</div></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                        {d.extracted.map(r => (<div key={r.label}><div className="text-[11px] text-muted">{r.label}</div><div className="text-sm font-semibold text-navy-500">{r.value}</div></div>))}
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function PatientTimeline({ documents }) {
+            const events = [...baseTimeline, ...documents.map(d => ({ year: '2026', type: 'document', title: `${d.type} digitized`, desc: d.extracted.map(r => `${r.label}: ${r.value}`).join(' · ') }))];
+            return <div className="p-5 sm:p-8 pb-24 md:pb-8"><Card><TimelineList events={events} /></Card></div>;
+        }
+
+        function PatientFollowups({ followup }) {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    {followup ? (
+                        <Card className="flex items-start gap-4">
+                            <div className="w-11 h-11 rounded-xl bg-navy-50 text-navy-500 flex items-center justify-center shrink-0"><Icon name="calendar" size={20} /></div>
+                            <div>
+                                <div className="font-semibold text-navy-500">Follow-up consultation</div>
+                                <div className="text-sm text-muted mt-0.5">{followup}</div>
+                                <Badge tone="cyan" className="mt-2">Reminder set</Badge>
+                            </div>
+                        </Card>
+                    ) : <EmptyState icon="calendar" title="No upcoming appointments" desc="Scheduled follow-ups will appear here." />}
+                </div>
+            );
+        }
+
+        /* ============================== CHARTS (pure SVG, no deps) ============================== */
+        function BarChart({ data, colorClass = 'fill-brand-500' }) {
+            const max = Math.max(...data.map(d => d.value), 1);
+            return (
+                <div className="flex items-end gap-3 h-36 pt-2">
+                    {data.map(d => (
+                        <div key={d.label} className="flex-1 flex flex-col items-center gap-1.5">
+                            <div className="text-xs font-semibold text-navy-500">{d.value}</div>
+                            <div className="w-full rounded-lg bg-slate-100 flex items-end" style={{ height: '96px' }}>
+                                <div className={`w-full rounded-lg ${colorClass}`} style={{ height: `${(d.value / max) * 96}px` }} />
+                            </div>
+                            <div className="text-[10px] text-muted text-center leading-tight">{d.label}</div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        function DonutChart({ data }) {
+            const total = data.reduce((s, d) => s + d.value, 0);
+            let acc = 0;
+            const R = 40, C = 2 * Math.PI * R;
+            return (
+                <div className="flex items-center gap-5">
+                    <svg viewBox="0 0 100 100" width="120" height="120">
+                        <circle cx="50" cy="50" r={R} fill="none" stroke="#EEF2F6" strokeWidth="14" />
+                        {data.map((d, i) => {
+                            const frac = d.value / total;
+                            const dash = frac * C;
+                            const el = (
+                                <circle key={i} cx="50" cy="50" r={R} fill="none" stroke={d.color} strokeWidth="14"
+                                    strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-acc} transform="rotate(-90 50 50)" strokeLinecap="butt" />
+                            );
+                            acc += dash;
+                            return el;
+                        })}
+                        <text x="50" y="54" textAnchor="middle" fontSize="16" fontWeight="700" fill="#0B2A4A">{total}</text>
+                    </svg>
+                    <div className="space-y-1.5">
+                        {data.map(d => (
+                            <div key={d.label} className="flex items-center gap-2 text-xs">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                                <span className="text-muted">{d.label}</span><span className="font-semibold text-navy-500">{d.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        /* ============================== ADMIN / TRIAGE ============================== */
+        function MetricCard({ label, value, icon, tone = 'navy' }) {
+            const tones = { navy: 'bg-navy-50 text-navy-500', okgreen: 'bg-okgreen-50 text-okgreen-600', amber: 'bg-amber-50 text-amber-600', urgent: 'bg-urgent-50 text-urgent-600', cyan: 'bg-cyan-50 text-cyan-600' };
+            return (
+                <Card className="flex items-center gap-3.5">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tones[tone]}`}><Icon name={icon} size={19} /></div>
+                    <div><div className="text-xs text-muted">{label}</div><div className="font-display text-xl font-bold text-navy-500">{value}</div></div>
+                </Card>
+            );
+        }
+
+        function AdminHome({ cases }) {
+            const total = cases.length;
+            const pending = cases.filter(c => ['Under Triage', 'Submitted'].includes(c.status)).length;
+            const high = cases.filter(c => c.priority === 'URGENT REVIEW').length;
+            const completed = cases.filter(c => c.status === 'Completed').length;
+            const byDept = DEPARTMENTS.slice(0, 5).map(d => ({ label: d.name.split(' ')[0], value: cases.filter(c => c.department === d.name).length + Math.floor(Math.random() * 4) }));
+            const byPriority = [
+                { label: 'Normal', value: cases.filter(c => c.priority === 'NORMAL').length + 6, color: '#1E9E6D' },
+                { label: 'Priority', value: cases.filter(c => c.priority === 'PRIORITY REVIEW').length + 3, color: '#E08E2E' },
+                { label: 'Urgent', value: cases.filter(c => c.priority === 'URGENT REVIEW').length + 1, color: '#DC3B3B' },
+            ];
+            const volume = [{ label: 'Mon', value: 24 }, { label: 'Tue', value: 31 }, { label: 'Wed', value: 19 }, { label: 'Thu', value: 27 }, { label: 'Fri', value: 35 }, { label: 'Sat', value: 14 }];
+            return (
+                <div className="p-5 sm:p-8 space-y-6 pb-24 md:pb-8">
+                    <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <MetricCard label="Total Patients" value="248" icon="users" />
+                        <MetricCard label="Today's Cases" value={total} icon="clipboard" tone="cyan" />
+                        <MetricCard label="Doctors Available" value={DOCTORS_SEED.filter(d => d.status === 'Available').length} icon="stethoscope" tone="okgreen" />
+                        <MetricCard label="Cases Pending" value={pending} icon="clock" tone="amber" />
+                        <MetricCard label="High Priority" value={high} icon="alert" tone="urgent" />
+                        <MetricCard label="Avg. Wait Time" value="14 min" icon="activity" />
+                    </div>
+                    <div className="grid lg:grid-cols-2 gap-4">
+                        <Card><h4 className="font-semibold text-navy-500 mb-4">Cases by Department</h4><BarChart data={byDept} /></Card>
+                        <Card><h4 className="font-semibold text-navy-500 mb-4">Cases by Priority</h4><DonutChart data={byPriority} /></Card>
+                        <Card><h4 className="font-semibold text-navy-500 mb-4">Daily Patient Volume</h4><BarChart data={volume} colorClass="fill-cyan-500" /></Card>
+                        <Card><h4 className="font-semibold text-navy-500 mb-4">Average Consultation Time</h4>
+                            <div className="flex items-center justify-center h-36"><div className="text-center"><div className="font-display text-4xl font-bold text-navy-500">16.4</div><div className="text-xs text-muted mt-1">minutes per case</div></div></div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        function CaseTable({ cases, onAssign, onReview }) {
+            return (
+                <Card padded={false}>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[820px]">
+                            <thead><tr className="text-left text-xs text-muted border-b border-slate-100">
+                                {['Case ID', 'Patient', 'Department', 'Priority', 'Wait Time', 'Status', 'Assigned Doctor', ''].map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}
+                            </tr></thead>
+                            <tbody>
+                                {cases.map(c => (
+                                    <tr key={c.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                                        <td className="px-5 py-3.5 font-semibold text-navy-500">{c.id}</td>
+                                        <td className="px-5 py-3.5">{c.patient}</td>
+                                        <td className="px-5 py-3.5 text-muted">{c.department}</td>
+                                        <td className="px-5 py-3.5"><PriorityBadge level={c.priority} /></td>
+                                        <td className="px-5 py-3.5 text-muted">{c.wait}</td>
+                                        <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
+                                        <td className="px-5 py-3.5 text-muted">{c.doctor}</td>
+                                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                                            <Btn size="sm" variant="ghost" onClick={() => onReview(c)}>Review</Btn>
+                                            {(c.doctor === 'Unassigned') && <Btn size="sm" variant="outline" onClick={() => onAssign(c)}>Assign</Btn>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            );
+        }
+
+        function AdminTriage({ cases, onAssign, onReview }) {
+            return <div className="p-5 sm:p-8 pb-24 md:pb-8"><CaseTable cases={cases} onAssign={onAssign} onReview={onReview} /></div>;
+        }
+
+        function AssignDoctorModal({ caseItem, doctors, onClose, onAssign }) {
+            const [selected, setSelected] = useState(null);
+            const relevant = doctors.filter(d => d.spec === caseItem.department);
+            const list = relevant.length ? relevant : doctors;
+            return (
+                <div className="fixed inset-0 bg-navy-600/40 backdrop-blur-sm z-40 flex items-center justify-center p-5" onClick={onClose}>
+                    <div className="bg-white rounded-2xl shadow-card w-full max-w-lg fade-in" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs text-muted">CASE {caseItem.id}</div>
+                                <div className="font-display font-bold text-navy-500">{caseItem.department} · <PriorityBadge level={caseItem.priority} /></div>
+                            </div>
+                            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><Icon name="x" size={18} /></button>
+                        </div>
+                        <div className="p-5 space-y-2.5 max-h-80 overflow-auto">
+                            {list.map(d => (
+                                <button key={d.id} onClick={() => setSelected(d)} className={`w-full text-left rounded-xl border p-3.5 flex items-center justify-between focus-ring
+              ${selected?.id === d.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-brand-300'}`}>
+                                    <div>
+                                        <div className="font-semibold text-navy-500 text-sm">{d.name}</div>
+                                        <div className="text-xs text-muted">Specialization: {d.spec} · Current cases: {d.cases}</div>
+                                    </div>
+                                    <Badge tone={d.status === 'Available' ? 'okgreen' : 'amber'}>{d.status}</Badge>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="p-5 border-t border-slate-100 flex gap-3">
+                            <Btn variant="outline" className="flex-1" onClick={onClose}>Cancel</Btn>
+                            <Btn className="flex-1" disabled={!selected} onClick={() => onAssign(caseItem, selected)}>Assign based on selection</Btn>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ReviewCaseModal({ caseItem, onClose }) {
+            if (!caseItem) return null;
+            return (
+                <div className="fixed inset-0 bg-navy-600/40 backdrop-blur-sm z-40 flex items-center justify-center p-5" onClick={onClose}>
+                    <div className="bg-white rounded-2xl shadow-card w-full max-w-lg fade-in" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <div className="font-display font-bold text-navy-500">{caseItem.patient} <span className="text-muted font-normal text-sm">· {caseItem.id}</span></div>
+                                <div className="text-xs text-muted">{caseItem.age} yrs · {caseItem.gender} · {caseItem.department}</div>
+                            </div>
+                            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100"><Icon name="x" size={18} /></button>
+                        </div>
+                        <div className="p-5 space-y-3 text-sm">
+                            <div className="flex justify-between"><span className="text-muted">Chief complaint</span><span className="font-semibold text-navy-500">{caseItem.complaint}</span></div>
+                            <div className="flex justify-between"><span className="text-muted">Priority</span><PriorityBadge level={caseItem.priority} /></div>
+                            <div className="flex justify-between"><span className="text-muted">Status</span><StatusBadge status={caseItem.status} /></div>
+                            <div className="flex justify-between"><span className="text-muted">Assigned doctor</span><span className="font-semibold text-navy-500">{caseItem.doctor}</span></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminDoctors({ doctors }) {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {doctors.map(d => (
+                        <Card key={d.id} className="flex items-start gap-3.5">
+                            <div className="w-11 h-11 rounded-xl bg-navy-50 text-navy-500 flex items-center justify-center shrink-0 font-display font-bold">{d.name.split(' ')[1]?.[0] || 'D'}</div>
+                            <div className="flex-1">
+                                <div className="font-semibold text-navy-500 text-sm">{d.name}</div>
+                                <div className="text-xs text-muted mb-2">{d.spec}</div>
+                                <div className="flex items-center justify-between">
+                                    <Badge tone={d.status === 'Available' ? 'okgreen' : 'amber'}>{d.status}</Badge>
+                                    <span className="text-xs text-muted">{d.cases} active cases</span>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            );
+        }
+
+        function AdminPatients({ cases }) {
+            const uniq = Array.from(new Map(cases.map(c => [c.patient, c])).values());
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    <Card padded={false}>
+                        <div className="divide-y divide-slate-100">
+                            {uniq.map(c => (
+                                <div key={c.patient} className="px-5 py-3.5 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-semibold">{c.patient.split(' ').map(n => n[0]).join('')}</div>
+                                        <div><div className="font-semibold text-navy-500 text-sm">{c.patient}</div><div className="text-xs text-muted">{c.age} yrs · {c.gender}</div></div>
+                                    </div>
+                                    <StatusBadge status={c.status} />
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function AdminDepartments() {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {DEPARTMENTS.map(d => (
+                        <Card key={d.id} className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0"><Icon name={d.icon} size={17} /></div>
+                            <div><div className="font-semibold text-navy-500 text-sm">{d.name}</div><div className="text-xs text-muted mt-0.5">{d.desc}</div></div>
+                        </Card>
+                    ))}
+                </div>
+            );
+        }
+
+        function AdminAudit({ log }) {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    <Card padded={false}>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead><tr className="text-left text-xs text-muted border-b border-slate-100">
+                                    {['User', 'Action', 'Case ID', 'Timestamp'].map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}
+                                </tr></thead>
+                                <tbody>
+                                    {log.map((a, i) => (
+                                        <tr key={i} className="border-b border-slate-50 last:border-0">
+                                            <td className="px-5 py-3 font-semibold text-navy-500">{a.user}</td>
+                                            <td className="px-5 py-3 text-muted">{a.action}</td>
+                                            <td className="px-5 py-3 text-muted">{a.caseId || '—'}</td>
+                                            <td className="px-5 py-3 text-muted">{a.time}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function AdminSettings() {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8 max-w-xl">
+                    <Card className="space-y-4">
+                        {[['Role-based access control', 'Enabled'], ['Data encryption at rest', 'AES-256'], ['Audit logging', 'Active'], ['Session timeout', '30 minutes']].map(([k, v]) => (
+                            <div key={k} className="flex items-center justify-between py-1">
+                                <div className="flex items-center gap-2.5 text-sm text-navy-500 font-medium"><Icon name="shield" size={15} className="text-cyan-600" />{k}</div>
+                                <Badge tone="okgreen">{v}</Badge>
+                            </div>
+                        ))}
+                    </Card>
+                </div>
+            );
+        }
+
+        /* ============================== DOCTOR ============================== */
+        function DoctorHome({ cases, onOpen, doctorName }) {
+            const mine = cases.filter(c => c.doctor === doctorName);
+            const pending = mine.filter(c => c.status !== 'Completed').length;
+            const high = mine.filter(c => c.priority === 'URGENT REVIEW').length;
+            const completed = mine.filter(c => c.status === 'Completed').length;
+            return (
+                <div className="p-5 sm:p-8 space-y-6 pb-24 md:pb-8">
+                    <div className="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <MetricCard label="Today's Cases" value={mine.length} icon="clipboard" tone="cyan" />
+                        <MetricCard label="Pending" value={pending} icon="clock" tone="amber" />
+                        <MetricCard label="High Priority" value={high} icon="alert" tone="urgent" />
+                        <MetricCard label="Completed" value={completed} icon="checkCircle" tone="okgreen" />
+                        <MetricCard label="Follow-ups" value="3" icon="calendar" />
+                    </div>
+                    <Card padded={false}>
+                        <div className="p-5 pb-3"><h3 className="font-display font-bold text-navy-500">Your patients</h3></div>
+                        {mine.length === 0 ? <div className="p-5 pt-0"><EmptyState icon="stethoscope" title="No cases assigned yet" desc="Cases assigned to you will appear here." /></div> : (
+                            <div className="divide-y divide-slate-100">
+                                {mine.map(c => (
+                                    <button key={c.id} onClick={() => onOpen(c)} className="w-full text-left px-5 py-3.5 flex items-center justify-between hover:bg-slate-50/60 focus-ring">
+                                        <div>
+                                            <div className="font-semibold text-navy-500 text-sm">{c.patient} <span className="text-muted font-normal">· {c.id}</span></div>
+                                            <div className="text-xs text-muted">{c.complaint}</div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <PriorityBadge level={c.priority} />
+                                            <StatusBadge status={c.status} />
+                                            <Icon name="chevronRight" size={16} className="text-slate-300" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                </div>
+            );
+        }
+
+        function DoctorCaseList({ cases, onOpen, doctorName, filterUrgent }) {
+            let mine = cases.filter(c => c.doctor === doctorName);
+            if (filterUrgent) mine = mine.filter(c => c.priority !== 'NORMAL');
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    {mine.length === 0 ? <EmptyState icon="clipboard" title="Nothing here" /> : (
+                        <div className="space-y-3">
+                            {mine.map(c => (
+                                <Card key={c.id} className="flex items-center justify-between cursor-pointer hover:border-brand-300 transition-colors" onClick={() => onOpen(c)}>
+                                    <div>
+                                        <div className="font-semibold text-navy-500 text-sm">{c.patient} <span className="text-muted font-normal">· {c.id}</span></div>
+                                        <div className="text-xs text-muted mt-0.5">{c.complaint} · {c.department}</div>
+                                    </div>
+                                    <div className="flex items-center gap-3"><PriorityBadge level={c.priority} /><StatusBadge status={c.status} /></div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const CASE_TABS = ['Overview', 'Symptoms', 'Medical History', 'Timeline', 'Reports', 'Medications', 'Notes'];
+
+        function DoctorCaseView({ caseItem, caseData, documents, onBack, onComplete }) {
+            const [tab, setTab] = useState('Overview');
+            const [disposition, setDisposition] = useState(null);
+            const [notes, setNotes] = useState('');
+            const [fuDate, setFuDate] = useState('27 September 2026');
+            const [fuType, setFuType] = useState('In-person');
+            const answers = caseData?.answers || {};
+            const profile = caseData?.profile || {};
+
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8">
+                    <button onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-navy-500 focus-ring rounded-lg"><Icon name="chevronLeft" size={16} /> All cases</button>
+
+                    <Card className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div className="font-display text-xl font-bold text-navy-500">{caseItem.patient} <span className="text-muted text-base font-normal">· {caseItem.age || profile.age || '—'} yrs · {caseItem.gender || profile.gender || '—'}</span></div>
+                            <div className="text-sm text-muted mt-0.5">Case {caseItem.id} · {caseItem.department}</div>
+                        </div>
+                        <div className="flex items-center gap-2"><PriorityBadge level={caseItem.priority} /><StatusBadge status={caseItem.status} /></div>
+                    </Card>
+
+                    <div className="flex gap-1 mb-5 overflow-x-auto no-scrollbar">
+                        {CASE_TABS.map(t => (
+                            <button key={t} onClick={() => setTab(t)} className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium focus-ring ${tab === t ? 'bg-navy-500 text-white' : 'text-muted hover:bg-slate-100'}`}>{t}</button>
+                        ))}
+                    </div>
+
+                    <div className="grid lg:grid-cols-3 gap-5">
+                        <div className="lg:col-span-2 space-y-4">
+                            {tab === 'Overview' && (
+                                <Card>
+                                    <Badge tone="cyan" className="mb-4"><Icon name="activity" size={12} /> AI-assisted case summary</Badge>
+                                    <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                                        <div><div className="text-xs text-muted">Chief complaint</div><div className="font-semibold text-navy-500">{caseItem.complaint}</div></div>
+                                        <div><div className="text-xs text-muted">Duration</div><div className="font-semibold text-navy-500">{answers.onset || '—'}</div></div>
+                                        <div><div className="text-xs text-muted">Severity</div><div className="font-semibold text-navy-500">{answers.severity ? `${answers.severity}/10` : '—'}</div></div>
+                                        <div><div className="text-xs text-muted">Associated symptoms</div><div className="font-semibold text-navy-500">{(answers.associated || []).join(', ') || '—'}</div></div>
+                                        <div><div className="text-xs text-muted">Current medicines</div><div className="font-semibold text-navy-500">{profile.medicines || '—'}</div></div>
+                                        <div><div className="text-xs text-muted">Allergies</div><div className="font-semibold text-navy-500">{profile.allergies || 'None reported'}</div></div>
+                                        <div><div className="text-xs text-muted">Past conditions</div><div className="font-semibold text-navy-500">{profile.conditions || 'None reported'}</div></div>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-start gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl p-3">
+                                        <Icon name="alert" size={14} className="shrink-0 mt-0.5" /> AI assistance — doctor verification required.
+                                    </div>
+                                </Card>
+                            )}
+                            {tab === 'Symptoms' && (
+                                <Card>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex justify-between"><span className="text-muted">Worsens with activity</span><span className="font-semibold text-navy-500">{answers.worseActivity || '—'}</span></div>
+                                        <div className="flex justify-between"><span className="text-muted">Shortness of breath</span><span className="font-semibold text-navy-500">{answers.shortBreath || '—'}</span></div>
+                                        {answers.breathAtRest && <div className="flex justify-between"><span className="text-muted">Breathless at rest</span><span className="font-semibold text-navy-500">{answers.breathAtRest}</span></div>}
+                                        <div className="flex justify-between"><span className="text-muted">Had similar pain before</span><span className="font-semibold text-navy-500">{answers.before || '—'}</span></div>
+                                    </div>
+                                </Card>
+                            )}
+                            {tab === 'Medical History' && (
+                                <Card><PatientHistory data={caseData || { profile: {}, answers: {} }} /></Card>
+                            )}
+                            {tab === 'Timeline' && (
+                                <Card><TimelineList events={[...baseTimeline, ...documents.map(d => ({ year: '2026', type: 'document', title: `${d.type} digitized`, desc: d.extracted.map(r => `${r.label}: ${r.value}`).join(' · ') }))]} /></Card>
+                            )}
+                            {tab === 'Reports' && (
+                                documents.length ? <div className="space-y-3">{documents.map((d, i) => (
+                                    <Card key={i}><div className="font-semibold text-navy-500 text-sm mb-2">{d.type} · {d.name}</div>
+                                        <div className="grid grid-cols-2 gap-3">{d.extracted.map(r => (<div key={r.label}><div className="text-[11px] text-muted">{r.label}</div><div className="text-sm font-semibold text-navy-500">{r.value}</div></div>))}</div>
+                                    </Card>
+                                ))}</div> : <Card><EmptyState icon="file" title="No reports uploaded" /></Card>
+                            )}
+                            {tab === 'Medications' && (
+                                <Card><div className="text-sm text-navy-500 font-semibold mb-1">{profile.medicines || 'No current medications reported'}</div></Card>
+                            )}
+                            {tab === 'Notes' && (
+                                <Card>
+                                    <div className="text-sm font-semibold text-navy-500 mb-2">Clinical notes</div>
+                                    <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={6} placeholder="Add consultation notes…"
+                                        className="w-full rounded-xl border border-slate-200 p-3 text-sm focus-ring focus:border-brand-400 resize-none" />
+                                    <Btn className="mt-3" size="sm" onClick={() => { }}>Save Notes</Btn>
+                                </Card>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                            <Card>
+                                <h4 className="font-semibold text-navy-500 mb-3 text-sm">Doctor actions</h4>
+                                <div className="text-xs text-muted mb-2">Consultation Completed — select disposition</div>
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    {['Prescription', 'Lab Test', 'Referral', 'Follow-up', 'Observation'].map(o => (
+                                        <Chip key={o} active={disposition === o} onClick={() => setDisposition(o)} className="text-center text-xs">{o}</Chip>
+                                    ))}
+                                </div>
+                                {disposition === 'Follow-up' && (
+                                    <div className="mb-4 space-y-3">
+                                        <Field label="Follow-up date"><Input value={fuDate} onChange={e => setFuDate(e.target.value)} /></Field>
+                                        <Field label="Follow-up type">
+                                            <Select value={fuType} onChange={e => setFuType(e.target.value)}><option>In-person</option><option>Video consultation</option><option>Lab review only</option></Select>
+                                        </Field>
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <Btn className="w-full" variant="success" icon="checkCircle" onClick={() => onComplete(caseItem, disposition, fuDate)}>Complete Case</Btn>
+                                    <Btn className="w-full" variant="outline" icon="calendar" onClick={() => onComplete(caseItem, 'Follow-up', fuDate)}>Schedule Follow-up</Btn>
+                                </div>
+                            </Card>
+                            <Card>
+                                <h4 className="font-semibold text-navy-500 mb-3 text-sm">Priority reasoning</h4>
+                                <ul className="space-y-1.5">
+                                    {(caseData?.priority?.reasons || ['No screening data available']).map((r, i) => (
+                                        <li key={i} className="flex gap-2 text-xs text-navy-500"><Icon name="chevronRight" size={12} className="text-cyan-500 mt-0.5 shrink-0" />{r}</li>
+                                    ))}
+                                </ul>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DoctorFollowups() {
+            return (
+                <div className="p-5 sm:p-8 pb-24 md:pb-8 space-y-3">
+                    {[{ p: 'Rahul Kumar', d: '27 Sep 2026', t: 'In-person' }, { p: 'Suresh Menon', d: '02 Oct 2026', t: 'Video consultation' }, { p: 'Farah Sheikh', d: '05 Oct 2026', t: 'In-person' }].map((f, i) => (
+                        <Card key={i} className="flex items-center gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-navy-50 text-navy-500 flex items-center justify-center"><Icon name="calendar" size={17} /></div>
+                            <div><div className="font-semibold text-navy-500 text-sm">{f.p}</div><div className="text-xs text-muted">{f.d} · {f.t}</div></div>
+                        </Card>
+                    ))}
+                </div>
+            );
+        }
+
+        /* ============================== APP ============================== */
+        const WIZARD_SCREENS = ['language', 'consent', 'profile', 'department', 'complaint', 'adaptive', 'ayush', 'upload', 'priority', 'review'];
+
+        function App() {
+            const [role, setRole] = useState(null);
+            const [screen, setScreen] = useState('login');
+
+            // patient case-taking state
+            const [language, setLanguage] = useState(LANGUAGES[0]);
+            const [profile, setProfile] = useState({ name: '', age: '', gender: '', phone: '', blood: '', emergency: '', allergies: '', conditions: '', medicines: '' });
+            const [department, setDepartment] = useState({});
+            const [complaint, setComplaint] = useState('');
+            const [answers, setAnswers] = useState({});
+            const [ayush, setAyush] = useState({});
+            const [documents, setDocuments] = useState([]);
+            const [followup, setFollowup] = useState(null);
+            const [activeCaseId, setActiveCaseId] = useState(null);
+            const [caseDataStore, setCaseDataStore] = useState({});
+
+            // hospital-wide shared state
+            const [casesDB, setCasesDB] = useState(seedCases());
+            const [doctors] = useState(DOCTORS_SEED);
+            const [notifications, setNotifications] = useState([]);
+            const [auditLog, setAuditLog] = useState([
+                { user: 'Dr. Gupta', action: 'Viewed Case #1021', caseId: '#1021', time: '10:42 AM' },
+                { user: 'Admin', action: 'Assigned Case #1015', caseId: '#1015', time: '09:38 AM' },
+            ]);
+            const [notifOpen, setNotifOpen] = useState(false);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [assignCase, setAssignCase] = useState(null);
+            const [reviewCase, setReviewCase] = useState(null);
+            const [openCaseId, setOpenCaseId] = useState(null);
+
+            const doctorName = 'Dr. Gupta';
+
+            const addNotification = (n) => setNotifications(prev => [{ ...n }, ...prev].slice(0, 12));
+            const addAudit = (a) => setAuditLog(prev => [a, ...prev]);
+
+            const priorityResult = useMemo(() => computePriority({
+                complaintText: complaint, severity: answers.severity || 1, shortBreath: answers.shortBreath,
+                breathAtRest: answers.breathAtRest, worseOnActivity: answers.worseActivity, duration: answers.onset
+            }), [complaint, answers]);
+
+            const handleLogin = (r) => {
+                setRole(r);
+                if (r === 'patient') setScreen(activeCaseId ? 'patientHome' : 'language');
+                else if (r === 'doctor') setScreen('doctorHome');
+                else setScreen('adminHome');
+            };
+            const handleSwitchRole = () => { setRole(null); setScreen('login'); setNotifOpen(false); };
+
+            const fillDemoProfile = () => setProfile({ name: 'Rahul Kumar', age: '42', gender: 'Male', phone: '+91 98765 43210', blood: 'B+', emergency: 'Sunita Kumar (+91 90000 11122)', allergies: 'None known', conditions: 'Hypertension', medicines: 'Amlodipine 5mg once daily' });
+
+            const submitCase = () => {
+                const id = uid('#');
+                const newCase = {
+                    id, patient: profile.name || 'Rahul Kumar', age: profile.age || '—', gender: profile.gender || '—',
+                    department: department.name, priority: priorityResult.level, wait: '2 min', status: 'Under Triage',
+                    doctor: 'Unassigned', complaint, createdDay: 'Today'
+                };
+                setCasesDB(prev => [newCase, ...prev]);
+                setCaseDataStore(prev => ({ ...prev, [id]: { profile, answers, priority: priorityResult, documents, ayush } }));
+                setActiveCaseId(id);
+                addNotification({ text: `Case ${id} submitted and sent to triage.`, icon: 'clipboard', tone: 'cyan', time: 'Just now' });
+                addAudit({ user: profile.name || 'Patient', action: `Submitted case ${id}`, caseId: id, time: 'Just now' });
+                setScreen('submitted');
+            };
+
+            const doAssign = (caseItem, doctor) => {
+                setCasesDB(prev => prev.map(c => c.id === caseItem.id ? { ...c, doctor: doctor.name, status: 'Assigned', wait: '—' } : c));
+                addNotification({ text: `Case ${caseItem.id} assigned to ${doctor.name}.`, icon: 'stethoscope', tone: 'cyan', time: 'Just now' });
+                addAudit({ user: 'Admin', action: `Assigned case ${caseItem.id} to ${doctor.name}`, caseId: caseItem.id, time: 'Just now' });
+                setAssignCase(null);
+            };
+
+            const completeCase = (caseItem, disposition, fuDate) => {
+                const isFollowup = disposition === 'Follow-up';
+                setCasesDB(prev => prev.map(c => c.id === caseItem.id ? { ...c, status: isFollowup ? 'Follow-up' : 'Completed' } : c));
+                if (isFollowup) {
+                    addNotification({ text: `Patient ${caseItem.patient} has a scheduled follow-up on ${fuDate}.`, icon: 'calendar', tone: 'cyan', time: 'Just now' });
+                    if (activeCaseId === caseItem.id) setFollowup(`Your follow-up consultation is scheduled for ${fuDate}.`);
+                } else {
+                    addNotification({ text: `Case ${caseItem.id} marked completed by ${caseItem.doctor}.`, icon: 'checkCircle', tone: 'cyan', time: 'Just now' });
+                }
+                addAudit({ user: caseItem.doctor, action: `${isFollowup ? 'Scheduled follow-up for' : 'Completed'} case ${caseItem.id}`, caseId: caseItem.id, time: 'Just now' });
+                setOpenCaseId(null);
+                setScreen(role === 'doctor' ? 'doctorHome' : screen);
+            };
+
+            const searchResults = useMemo(() => {
+                if (!searchQuery) return [];
+                const q = searchQuery.toLowerCase();
+                return casesDB.filter(c => [c.patient, c.id, c.doctor, c.department].join(' ').toLowerCase().includes(q)).slice(0, 6);
+            }, [searchQuery, casesDB]);
+
+            const activeCase = casesDB.find(c => c.id === activeCaseId) || null;
+
+            /* ---- adaptive step index tracking for wizard "back to login" edge ---- */
+            const goto = (s) => { setScreen(s); window.scrollTo(0, 0); };
+
+            if (!role) return <ScreenLogin onLogin={handleLogin} />;
+
+            /* ---------------- PATIENT ---------------- */
+            if (role === 'patient' && WIZARD_SCREENS.includes(screen)) {
+                switch (screen) {
+                    case 'language': return <ScreenLanguage language={language} setLanguage={setLanguage} onNext={() => goto('consent')} onBack={() => { setRole(null); goto('login'); }} />;
+                    case 'consent': return <ScreenConsent onNext={() => goto('profile')} onBack={() => goto('language')} />;
+                    case 'profile': return (
+                        <div className="relative">
+                            <ScreenProfile profile={profile} setProfile={setProfile} onNext={() => goto('department')} onBack={() => goto('consent')} />
+                            <div className="fixed bottom-5 right-5 hidden sm:block">
+                                <button onClick={fillDemoProfile} className="text-xs bg-white border border-slate-200 rounded-full px-3.5 py-2 shadow-card text-brand-500 font-semibold focus-ring">Use demo patient (Rahul Kumar)</button>
+                            </div>
+                        </div>
+                    );
+                    case 'department': return <ScreenDepartment department={department} setDepartment={setDepartment} onNext={() => goto('complaint')} onBack={() => goto('profile')} />;
+                    case 'complaint': return <ScreenComplaint complaint={complaint} setComplaint={setComplaint} onNext={() => goto('adaptive')} onBack={() => goto('department')} />;
+                    case 'adaptive': return <ScreenAdaptive answers={answers} setAnswers={setAnswers} onNext={() => goto(department.id === 'ayush' ? 'ayush' : 'upload')} onBack={() => goto('complaint')} />;
+                    case 'ayush': return <ScreenAyush ayush={ayush} setAyush={setAyush} onNext={() => goto('upload')} onBack={() => goto('adaptive')} />;
+                    case 'upload': return <ScreenUpload documents={documents} setDocuments={setDocuments} onNext={() => goto('priority')} onBack={() => goto(department.id === 'ayush' ? 'ayush' : 'adaptive')} />;
+                    case 'priority': return <ScreenPriority result={priorityResult} onNext={() => goto('review')} onBack={() => goto('upload')} />;
+                    case 'review': return <ScreenReview data={{ profile, department, complaint, answers, documents, priority: priorityResult }} onSubmit={submitCase} onBack={() => goto('priority')} onEdit={() => goto('complaint')} />;
+                    default: return null;
+                }
+            }
+            if (role === 'patient' && screen === 'submitted') {
+                return <ScreenSubmitted caseId={activeCaseId} onDone={() => goto('patientHome')} />;
+            }
+
+            /* ---------------- DASHBOARD SHELL (patient / doctor / admin) ---------------- */
+            const titles = {
+                patientHome: 'Dashboard', patientHistory: 'Medical History', patientDocs: 'Documents', patientTimeline: 'Timeline', patientFollowups: 'Appointments',
+                doctorHome: 'Dashboard', doctorAssigned: 'Assigned Cases', doctorPriority: 'Priority Cases', doctorPatients: 'Patients', doctorFollowups: 'Follow-ups', doctorCaseView: 'Case View',
+                adminHome: 'Overview', adminTriage: 'Triage Queue', adminDoctors: 'Doctors', adminPatients: 'Patients', adminDepartments: 'Departments', adminAudit: 'Audit Log', adminSettings: 'System Settings',
+            };
+            const userInfo = {
+                patient: { name: profile.name || 'Demo Patient', sub: 'Patient', initials: (profile.name || 'DP').split(' ').map(w => w[0]).slice(0, 2).join('') },
+                doctor: { name: doctorName, sub: 'General Medicine', initials: 'DG' },
+                admin: { name: 'Hospital Admin', sub: 'Staff Access', initials: 'HA' },
+            }[role];
+
+            const openCase = casesDB.find(c => c.id === openCaseId) || null;
+
+            let content = null;
+            if (role === 'patient') {
+                if (screen === 'patientHome') content = <PatientHome data={{ activeCase, profile, followup }} setScreen={goto} />;
+                else if (screen === 'patientHistory') content = <PatientHistory data={{ profile, answers, complaint }} />;
+                else if (screen === 'patientDocs') content = <PatientDocs documents={documents} />;
+                else if (screen === 'patientTimeline') content = <PatientTimeline documents={documents} />;
+                else if (screen === 'patientFollowups') content = <PatientFollowups followup={followup} />;
+            } else if (role === 'doctor') {
+                if (screen === 'doctorCaseView' && openCase) content = (
+                    <DoctorCaseView caseItem={openCase} caseData={caseDataStore[openCase.id]} documents={caseDataStore[openCase.id]?.documents || []}
+                        onBack={() => goto('doctorHome')} onComplete={completeCase} />
+                );
+                else if (screen === 'doctorAssigned') content = <DoctorCaseList cases={casesDB} onOpen={(c) => { setOpenCaseId(c.id); goto('doctorCaseView'); }} doctorName={doctorName} />;
+                else if (screen === 'doctorPriority') content = <DoctorCaseList cases={casesDB} onOpen={(c) => { setOpenCaseId(c.id); goto('doctorCaseView'); }} doctorName={doctorName} filterUrgent />;
+                else if (screen === 'doctorPatients') content = <AdminPatients cases={casesDB.filter(c => c.doctor === doctorName)} />;
+                else if (screen === 'doctorFollowups') content = <DoctorFollowups />;
+                else content = <DoctorHome cases={casesDB} doctorName={doctorName} onOpen={(c) => { setOpenCaseId(c.id); goto('doctorCaseView'); }} />;
+            } else if (role === 'admin') {
+                if (screen === 'adminTriage') content = <AdminTriage cases={casesDB} onAssign={(c) => setAssignCase(c)} onReview={(c) => setReviewCase(c)} />;
+                else if (screen === 'adminDoctors') content = <AdminDoctors doctors={doctors} />;
+                else if (screen === 'adminPatients') content = <AdminPatients cases={casesDB} />;
+                else if (screen === 'adminDepartments') content = <AdminDepartments />;
+                else if (screen === 'adminAudit') content = <AdminAudit log={auditLog} />;
+                else if (screen === 'adminSettings') content = <AdminSettings />;
+                else content = <AdminHome cases={casesDB} />;
+            }
+
+            return (
+                <div className="flex min-h-screen bg-shell">
+                    <Sidebar role={role} active={screen} setActive={goto} onLogout={handleSwitchRole} onSwitchRole={handleSwitchRole} />
+                    <div className="flex-1 min-w-0 relative">
+                        <TopBar title={titles[screen] || 'Dashboard'} user={userInfo} notifications={notifications}
+                            notifOpen={notifOpen} onOpenNotif={() => setNotifOpen(!notifOpen)}
+                            searchQuery={searchQuery} onSearch={setSearchQuery} searchResults={searchResults} />
+                        {content}
+                        <MobileNav role={role} active={screen} setActive={goto} />
+                    </div>
+                    {assignCase && <AssignDoctorModal caseItem={assignCase} doctors={doctors} onClose={() => setAssignCase(null)} onAssign={doAssign} />}
+                    {reviewCase && <ReviewCaseModal caseItem={reviewCase} onClose={() => setReviewCase(null)} />}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+
+</html>
